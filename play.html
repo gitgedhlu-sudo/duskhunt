@@ -7,6 +7,15 @@
   <meta name="theme-color" content="#0a0f1a">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+    input.num { width: 100%; padding: 12px; font-size: 17px; border-radius: 12px; border: 1px solid var(--line);
+      background: var(--bg2); color: var(--text); outline: none; }
+    input.num:focus { border-color: var(--hunter); }
+    input.num:disabled { opacity: .6; }
+    .badge.random { background: rgba(141,155,181,.18); color: var(--muted); }
+    .seg button.on { outline: 2px solid var(--text); }
+  </style>
 </head>
 <body class="app">
 
@@ -33,21 +42,33 @@
       <div class="codebox"><div class="muted" style="margin:0">Match code</div><div class="c" id="lobbyCode">----</div>
         <button id="btnShare" class="btn ghost sm" style="margin-top:8px">Share invite</button></div>
       <div id="gpsStatus" class="gps no">Waiting for GPS…</div>
-      <h3>Choose your side</h3>
-      <div class="seg">
-        <button id="sideHunter" class="btn">Hunter</button>
-        <button id="sideShadow" class="btn shadow">Shadow</button>
+      <div id="sideBox" style="display:none">
+        <h3>Choose your side</h3>
+        <div class="seg">
+          <button id="sideHunter" class="btn">Hunter</button>
+          <button id="sideShadow" class="btn shadow">Shadow</button>
+        </div>
       </div>
+      <div id="randomNote" class="muted" style="display:none">Roles are drawn at random when the host starts the match.</div>
       <h3>Players</h3>
       <ul id="plist" class="plist"></ul>
+
+      <h3>Match settings <span id="settingsLock" class="muted" style="font-size:13px;font-weight:400"></span></h3>
+      <div class="field"><span>Roles</span>
+        <div class="seg">
+          <button id="modeRandom" class="btn ghost sm" type="button">Random</button>
+          <button id="modeManual" class="btn ghost sm" type="button">Players choose</button>
+        </div>
+      </div>
+      <div class="grid2">
+        <label class="field"><span>Hunters (0 = auto)</span><input class="num" id="setHunters" type="number" inputmode="numeric" min="0" max="10" step="1"></label>
+        <label class="field"><span>Zone radius (m)</span><input class="num" id="radiusInput" type="number" inputmode="numeric" min="50" max="400" step="10"></label>
+        <label class="field"><span>Head start (min)</span><input class="num" id="setHead" type="number" inputmode="decimal" min="0" max="30" step="0.5"></label>
+        <label class="field"><span>Location ping every (min)</span><input class="num" id="setPing" type="number" inputmode="decimal" min="0.5" max="30" step="0.5"></label>
+        <label class="field"><span>Zone shrinks every (min)</span><input class="num" id="setShrink" type="number" inputmode="decimal" min="1" max="60" step="0.5"></label>
+        <label class="field"><span>Match time (min)</span><input class="num" id="setDur" type="number" inputmode="decimal" min="5" max="180" step="1"></label>
+      </div>
       <div id="hostBox" style="display:none" class="stack">
-        <label class="field"><span>Play zone radius (metres, max 400)</span>
-          <div class="row">
-            <input id="radiusInput" type="number" inputmode="numeric" min="50" max="400" step="10" value="150"
-              style="padding:14px;font-size:18px;border-radius:12px;border:1px solid var(--line);background:var(--bg2);color:var(--text);width:100%">
-            <button id="btnRadiusSet" class="btn ghost" type="button">Set</button>
-          </div>
-          <div id="radiusSeg" class="seg" style="margin-top:8px"></div></label>
         <button id="btnStart" class="btn big" style="width:100%">Start match</button>
       </div>
       <div id="waitBox" class="muted" style="display:none">Waiting for the host to start…</div>
