@@ -1,0 +1,17 @@
+{
+  "name": "duskhunt",
+  "version": "1.0.0",
+  "description": "DuskHunt - real-world GPS manhunt. Hunters vs Shadows on real streets.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "TIME_SCALE=20 node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  }
+}
