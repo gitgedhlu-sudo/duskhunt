@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Play — DuskHunt</title>
+  <meta name="theme-color" content="#0a0f1a">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="app">
+
+  <!-- HOME -->
+  <div id="screen-home" class="screen on">
+    <div class="panel">
+      <a href="/" class="brand"><span class="dot"></span>DuskHunt</a>
+      <h1>Start a match</h1>
+      <p class="muted">Create a match and share the code, or join your friends.</p>
+      <label class="field"><span>Your name</span><input id="name" type="text" maxlength="20" autocomplete="nickname" placeholder="e.g. Ghost"></label>
+      <button id="btnCreate" class="btn big" style="width:100%">Create match</button>
+      <div class="or">— or join with a code —</div>
+      <label class="field"><span>Match code</span><input id="code" class="code" type="text" maxlength="4" placeholder="ABCD" autocapitalize="characters"></label>
+      <button id="btnJoin" class="btn shadow big" style="width:100%">Join match</button>
+      <div id="homeErr" class="err"></div>
+      <p class="muted" style="font-size:13px">You'll be asked for location access. It is only used during a match. Play safe, watch for traffic.</p>
+    </div>
+  </div>
+
+  <!-- LOBBY -->
+  <div id="screen-lobby" class="screen">
+    <div class="panel">
+      <a href="/" class="brand"><span class="dot"></span>DuskHunt</a>
+      <div class="codebox"><div class="muted" style="margin:0">Match code</div><div class="c" id="lobbyCode">----</div>
+        <button id="btnShare" class="btn ghost sm" style="margin-top:8px">Share invite</button></div>
+      <div id="gpsStatus" class="gps no">Waiting for GPS…</div>
+      <h3>Choose your side</h3>
+      <div class="seg">
+        <button id="sideHunter" class="btn">Hunter</button>
+        <button id="sideShadow" class="btn shadow">Shadow</button>
+      </div>
+      <h3>Players</h3>
+      <ul id="plist" class="plist"></ul>
+      <div id="hostBox" style="display:none" class="stack">
+        <label class="field"><span>Play zone radius (metres, max 400)</span>
+          <div class="row">
+            <input id="radiusInput" type="number" inputmode="numeric" min="50" max="400" step="10" value="150"
+              style="padding:14px;font-size:18px;border-radius:12px;border:1px solid var(--line);background:var(--bg2);color:var(--text);width:100%">
+            <button id="btnRadiusSet" class="btn ghost" type="button">Set</button>
+          </div>
+          <div id="radiusSeg" class="seg" style="margin-top:8px"></div></label>
+        <button id="btnStart" class="btn big" style="width:100%">Start match</button>
+      </div>
+      <div id="waitBox" class="muted" style="display:none">Waiting for the host to start…</div>
+      <div id="lobbyErr" class="err"></div>
+      <button id="btnLeave" class="btn ghost sm">Leave</button>
+    </div>
+  </div>
+
+  <!-- GAME -->
+  <div id="screen-game" class="screen">
+    <div id="map"></div>
+    <div class="topbar">
+      <div class="chip role" id="chipRole"><span>You are</span><b id="roleTxt">-</b></div>
+      <div class="chip"><span id="t1l">-</span><b id="t1">--:--</b></div>
+      <div class="chip" id="chipPing" style="display:none"><span>Next ping</span><b id="t2">--:--</b></div>
+      <div class="chip" id="chipZone" style="display:none"><span>Zone shrinks</span><b id="t3">--:--</b></div>
+      <div class="chip"><span>Zone</span><b id="zoneTxt">-</b></div>
+    </div>
+    <div id="banner" class="banner"></div>
+    <div class="bottom">
+      <div id="compass" class="compass" style="display:none">
+        <svg id="arrow" class="arrow" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="none" stroke="#24324d" stroke-width="4"/><path d="M50 10 L68 62 L50 52 L32 62 Z" fill="#ff7a45"/></svg>
+        <div><div class="t" id="cmpLbl">Last ping</div><div class="d" id="cmpDist">--</div>
+          <button id="btnCompass" class="btn ghost sm" style="display:none;margin-top:4px">Enable compass</button></div>
+      </div>
+      <button id="btnTag" class="btn danger tagbtn" style="display:none">I GOT TAGGED</button>
+    </div>
+  </div>
+
+  <!-- RESULT -->
+  <div id="screen-end" class="screen">
+    <div class="panel result">
+      <h1 id="endTitle">-</h1>
+      <p class="muted" id="endReason"></p>
+      <div id="map2" style="height:300px;border-radius:16px;overflow:hidden;margin:16px 0"></div>
+      <button id="btnAgain" class="btn big" style="width:100%">Back to start</button>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/play.js"></script>
+</body>
+</html>
