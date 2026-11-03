@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>DuskHunt — Real-world GPS manhunt</title>
+  <meta name="description" content="Hunters vs Shadows on real streets. Free to play in your phone's browser. Android app coming soon.">
+  <meta name="theme-color" content="#0a0f1a">
+  <meta property="og:title" content="DuskHunt">
+  <meta property="og:description" content="Hunters vs Shadows on real streets. Free to play in your phone's browser.">
+  <meta property="og:type" content="website">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="nav">
+    <div class="wrap">
+      <a class="brand" href="/"><span class="dot"></span>DuskHunt</a>
+      <a class="btn sm" href="/play">Play now</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="wrap hero">
+      <h1>Your city is <em>the map.</em></h1>
+      <p class="sub">Hunters vs Shadows. On foot, on real streets.</p>
+      <div class="cta">
+        <a class="btn big" href="/play">Play in your browser →</a>
+        <span class="pill">Android app <b>Coming soon</b></span>
+      </div>
+
+      <div class="mapcard" aria-hidden="true">
+        <div class="grid"></div>
+        <div class="zone"></div>
+        <span class="blip s"></span><span class="blip h"></span><span class="blip h2"></span>
+        <div class="hud">
+          <span>DEMO ×30 <b id="demoClock">30:00</b></span>
+          <span>NEXT PING <b id="demoPing">0:00</b></span>
+          <span>Head start over. Hunters released.</span>
+        </div>
+      </div>
+    </div>
+
+    <section>
+      <div class="wrap">
+        <h2>Pick a side.</h2>
+        <div class="sides">
+          <div class="side h">
+            <div class="tag">Hunters</div>
+            <h3>Track them down.</h3>
+            <p>Follow the pings and the compass.</p>
+          </div>
+          <div class="side s">
+            <div class="tag">Shadows</div>
+            <h3>Stay gone.</h3>
+            <p>Run, hide, outlast the clock.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <h2>How a match plays.</h2>
+        <ol class="steps">
+          <li><div class="n">3<small>MIN</small></div><h3>Head start</h3></li>
+          <li><div class="n">3<small>EVERY MIN</small></div><h3>Location pings</h3></li>
+          <li><div class="n">10<small>EVERY MIN</small></div><h3>The zone shrinks</h3></li>
+          <li><div class="n">30<small>MIN</small></div><h3>Survive the clock</h3></li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="caught">
+      <div class="wrap">
+        <h2>Caught? Own it.</h2>
+        <p>The Shadow taps the button. Fair play, no arguments.</p>
+        <span class="fakebtn">I GOT TAGGED</span>
+      </div>
+    </section>
+
+    <section class="final">
+      <div class="wrap">
+        <h2>Get your friends. Go outside.</h2>
+        <p style="color:var(--muted)">Free in any phone browser.</p>
+        <div class="cta">
+          <a class="btn big" href="/play">Play now →</a>
+          <span class="pill">Android app <b>Coming soon</b></span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      © 2026 DuskHunt · Play safe, watch for traffic.<br><br>
+      <a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a><a href="/play">Play</a>
+    </div>
+  </footer>
+
+  <script>
+    // tiny looping demo clock for the hero card
+    (function () {
+      var t = 30 * 60, p = 0;
+      setInterval(function () {
+        t = t <= 0 ? 30 * 60 : t - 30;
+        p = p >= 180 ? 0 : p + 30;
+        var f = function (s) { return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+        document.getElementById('demoClock').textContent = f(t);
+        document.getElementById('demoPing').textContent = f(180 - p);
+      }, 1000);
+    })();
+  </script>
+</body>
+</html>
