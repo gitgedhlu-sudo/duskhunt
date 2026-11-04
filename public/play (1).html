@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Play — DuskHunt</title>
+  <meta name="theme-color" content="#0a0f1a">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+    input.num { width: 100%; padding: 12px; font-size: 17px; border-radius: 12px; border: 1px solid var(--line);
+      background: var(--bg2); color: var(--text); outline: none; }
+    input.num:focus { border-color: var(--hunter); }
+    input.num:disabled { opacity: .6; }
+    .badge.random { background: rgba(141,155,181,.18); color: var(--muted); }
+    .seg button.on { outline: 2px solid var(--text); }
+  </style>
+</head>
+<body class="app">
+
+  <!-- HOME -->
+  <div id="screen-home" class="screen on">
+    <div class="panel">
+      <a href="/" class="brand"><span class="dot"></span>DuskHunt</a>
+      <h1>Start a match</h1>
+      <p class="muted">Create a match and share the code, or join your friends.</p>
+      <label class="field"><span>Your name</span><input id="name" type="text" maxlength="20" autocomplete="nickname" placeholder="e.g. Ghost"></label>
+      <button id="btnCreate" class="btn big" style="width:100%">Create match</button>
+      <div class="or">— or join with a code —</div>
+      <label class="field"><span>Match code</span><input id="code" class="code" type="text" maxlength="4" placeholder="ABCD" autocapitalize="characters"></label>
+      <button id="btnJoin" class="btn shadow big" style="width:100%">Join match</button>
+      <div id="homeErr" class="err"></div>
+      <p class="muted" style="font-size:13px">You'll be asked for location access. It is only used during a match. Play safe, watch for traffic.</p>
+    </div>
+  </div>
+
+  <!-- LOBBY -->
+  <div id="screen-lobby" class="screen">
+    <div class="panel">
+      <a href="/" class="brand"><span class="dot"></span>DuskHunt</a>
+      <div class="codebox"><div class="muted" style="margin:0">Match code</div><div class="c" id="lobbyCode">----</div>
+        <button id="btnShare" class="btn ghost sm" style="margin-top:8px">Share invite</button></div>
+      <div id="gpsStatus" class="gps no">Waiting for GPS…</div>
+      <div id="sideBox" style="display:none">
+        <h3>Choose your side</h3>
+        <div class="seg">
+          <button id="sideHunter" class="btn">Hunter</button>
+          <button id="sideShadow" class="btn shadow">Shadow</button>
+        </div>
+      </div>
+      <div id="randomNote" class="muted" style="display:none">Roles are drawn at random when the host starts the match.</div>
+      <h3>Players</h3>
+      <ul id="plist" class="plist"></ul>
+
+      <h3>Match settings <span id="settingsLock" class="muted" style="font-size:13px;font-weight:400"></span></h3>
+      <div class="field"><span>Roles</span>
+        <div class="seg">
+          <button id="modeRandom" class="btn ghost sm" type="button">Random</button>
+          <button id="modeManual" class="btn ghost sm" type="button">Players choose</button>
+        </div>
+      </div>
+      <div class="grid2">
+        <label class="field"><span>Hunters (0 = auto)</span><input class="num" id="setHunters" type="number" inputmode="numeric" min="0" max="10" step="1"></label>
+        <label class="field"><span>Zone radius (m)</span><input class="num" id="radiusInput" type="number" inputmode="numeric" min="50" max="400" step="10"></label>
+        <label class="field"><span>Head start (min)</span><input class="num" id="setHead" type="number" inputmode="decimal" min="0" max="30" step="0.5"></label>
+        <label class="field"><span>Location ping every (min)</span><input class="num" id="setPing" type="number" inputmode="decimal" min="0.5" max="30" step="0.5"></label>
+        <label class="field"><span>Zone shrinks every (min)</span><input class="num" id="setShrink" type="number" inputmode="decimal" min="1" max="60" step="0.5"></label>
+        <label class="field"><span>Match time (min)</span><input class="num" id="setDur" type="number" inputmode="decimal" min="5" max="180" step="1"></label>
+      </div>
+      <div id="hostBox" style="display:none" class="stack">
+        <button id="btnStart" class="btn big" style="width:100%">Start match</button>
+      </div>
+      <div id="waitBox" class="muted" style="display:none">Waiting for the host to start…</div>
+      <div id="lobbyErr" class="err"></div>
+      <button id="btnLeave" class="btn ghost sm">Leave</button>
+    </div>
+  </div>
+
+  <!-- GAME -->
+  <div id="screen-game" class="screen">
+    <div id="map"></div>
+    <div class="topbar">
+      <div class="chip role" id="chipRole"><span>You are</span><b id="roleTxt">-</b></div>
+      <div class="chip"><span id="t1l">-</span><b id="t1">--:--</b></div>
+      <div class="chip" id="chipPing" style="display:none"><span>Next ping</span><b id="t2">--:--</b></div>
+      <div class="chip" id="chipZone" style="display:none"><span>Zone shrinks</span><b id="t3">--:--</b></div>
+      <div class="chip"><span>Zone</span><b id="zoneTxt">-</b></div>
+    </div>
+    <div id="banner" class="banner"></div>
+    <div class="bottom">
+      <div id="compass" class="compass" style="display:none">
+        <svg id="arrow" class="arrow" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="none" stroke="#24324d" stroke-width="4"/><path d="M50 10 L68 62 L50 52 L32 62 Z" fill="#ff7a45"/></svg>
+        <div><div class="t" id="cmpLbl">Last ping</div><div class="d" id="cmpDist">--</div>
+          <button id="btnCompass" class="btn ghost sm" style="display:none;margin-top:4px">Enable compass</button></div>
+      </div>
+      <button id="btnTag" class="btn danger tagbtn" style="display:none">I GOT TAGGED</button>
+    </div>
+  </div>
+
+  <!-- RESULT -->
+  <div id="screen-end" class="screen">
+    <div class="panel result">
+      <h1 id="endTitle">-</h1>
+      <p class="muted" id="endReason"></p>
+      <div id="map2" style="height:300px;border-radius:16px;overflow:hidden;margin:16px 0"></div>
+      <button id="btnAgain" class="btn big" style="width:100%">Back to start</button>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/play.js"></script>
+</body>
+</html>
