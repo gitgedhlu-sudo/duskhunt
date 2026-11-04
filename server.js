@@ -11,11 +11,23 @@ const PORT = process.env.PORT || 3000;
 const SCALE = Number(process.env.TIME_SCALE || 1);
 
 const MIN = 60 * 1000;
+// Per-match settings the host can change in the lobby (all times in minutes).
+const DEFAULTS = {
+  headStartMin: 3,
+  pingEveryMin: 3,
+  shrinkEveryMin: 10,
+  durationMin: 30, // hunt length, counted from the end of the head start
+  roleMode: 'random', // 'random' = server picks hunters, 'manual' = players choose
+  hunterCount: 0, // 0 = automatic (about 1 hunter per 4 players)
+};
+const LIMITS = {
+  headStartMin: [0, 30],
+  pingEveryMin: [0.5, 30],
+  shrinkEveryMin: [1, 60],
+  durationMin: [5, 180],
+  hunterCount: [0, 10],
+};
 const CFG = {
-  headStartMs: (3 * MIN) / SCALE,
-  pingEveryMs: (3 * MIN) / SCALE,
-  shrinkEveryMs: (10 * MIN) / SCALE,
-  durationMs: (30 * MIN) / SCALE, // hunt length, counted from the end of the head start
   shrinkFactor: 0.7,
   defaultRadius: 150, // metres
   maxRadiusLimit: 400, // host may choose any value up to this
@@ -29,8 +41,22 @@ const server = http.createServer(app);
 const io = new Server(server, { pingInterval: 10000, pingTimeout: 20000 });
 
 app.disable('x-powered-by');
-app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'] }));
-app.get('/play', (req, res) => res.sendFile(path.join(__dirname, 'public', 'play.html')));
+// Works with either layout: files inside ./public (normal) or all files flat in the
+// project root (useful when uploading through GitHub's web uploader, which flattens folders).
+const fs = require('fs');
+const PUB = path.join(__dirname, 'public');
+if (fs.existsSync(path.join(PUB, 'index.html'))) {
+  app.use(express.static(PUB, { extensions: ['html'] }));
+  app.get('/play', (req, res) => res.sendFile(path.join(PUB, 'play.html')));
+} else {
+  const send = (file) => (req, res) => res.sendFile(path.join(__dirname, file));
+  app.get('/', send('index.html'));
+  app.get(['/play', '/play.html'], send('play.html'));
+  app.get(['/privacy', '/privacy.html'], send('privacy.html'));
+  app.get(['/terms', '/terms.html'], send('terms.html'));
+  app.get('/css/style.css', send('style.css'));
+  app.get('/js/play.js', send('play.js'));
+}
 app.get('/health', (req, res) => res.json({ ok: true, rooms: rooms.size }));
 app.get('/config.json', (req, res) =>
   res.json({ ...CFG, scale: SCALE })
@@ -63,6 +89,19 @@ function haversine(lat1, lng1, lat2, lng2) {
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(i + 1);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function hunterCountFor(settings, total) {
+  const wanted = settings.hunterCount > 0 ? settings.hunterCount : Math.max(1, Math.round(total / 4));
+  return Math.max(1, Math.min(wanted, total - 1));
+}
+
 function cleanName(n) {
   return String(n || '')
     .replace(/[^\p{L}\p{N} _.-]/gu, '')
@@ -78,11 +117,16 @@ function alive(room) {
   return [...room.players.values()].filter((p) => p.side === 'shadow' && !p.caught);
 }
 
+// While roles are still to be drawn at random, nobody's side is shown.
+function sideShown(room, p) {
+  return room.phase === 'lobby' && room.settings.roleMode === 'random' ? 'random' : p.side;
+}
+
 function publicPlayer(p, room) {
   return {
     id: p.id,
     name: p.name,
-    side: p.side,
+    side: sideShown(room, p),
     caught: p.caught,
     connected: p.connected,
     host: room.hostId === p.id,
@@ -103,9 +147,15 @@ function viewFor(room, me) {
     now,
     code: room.code,
     phase: room.phase,
-    cfg: { minRadius: CFG.minRadiusLimit, maxRadius: CFG.maxRadiusLimit, defaultRadius: CFG.defaultRadius },
+    cfg: {
+      minRadius: CFG.minRadiusLimit,
+      maxRadius: CFG.maxRadiusLimit,
+      defaultRadius: CFG.defaultRadius,
+      limits: LIMITS,
+    },
+    settings: room.settings,
     baseRadius: room.baseRadius,
-    you: { id: me.id, side: me.side, caught: me.caught, host: room.hostId === me.id },
+    you: { id: me.id, side: sideShown(room, me), caught: me.caught, host: room.hostId === me.id },
     players: players.map((p) => publicPlayer(p, room)),
     zone: room.center ? { lat: room.center.lat, lng: room.center.lng, radius: room.radius } : null,
     times: {
@@ -199,18 +249,18 @@ function tickRoom(room) {
   if (room.phase === 'headstart' && now >= room.huntStartAt) {
     room.phase = 'hunt';
     room.nextPingAt = now;
-    room.nextShrinkAt = now + CFG.shrinkEveryMs;
-    room.endAt = now + CFG.durationMs;
+    room.nextShrinkAt = now + room.t.shrinkEveryMs;
+    room.endAt = now + room.t.durationMs;
   }
 
   if (room.phase === 'hunt') {
     if (now >= room.nextPingAt) {
       doPing(room);
-      room.nextPingAt += CFG.pingEveryMs;
+      room.nextPingAt += room.t.pingEveryMs;
     }
     if (now >= room.nextShrinkAt) {
       room.radius = Math.max(CFG.minRadius, Math.round(room.radius * CFG.shrinkFactor));
-      room.nextShrinkAt += CFG.shrinkEveryMs;
+      room.nextShrinkAt += room.t.shrinkEveryMs;
     }
     if (now >= room.endAt) endGame(room, 'shadows', 'The clock ran out. The Shadows survived.');
   }
@@ -275,6 +325,8 @@ io.on('connection', (socket) => {
       hostId: me.id,
       players: new Map([[me.id, me]]),
       phase: 'lobby',
+      settings: { ...DEFAULTS },
+      t: null,
       baseRadius: CFG.defaultRadius,
       radius: CFG.defaultRadius,
       center: null,
@@ -344,6 +396,22 @@ io.on('connection', (socket) => {
     broadcast(room);
   });
 
+  socket.on('setSettings', (d) => {
+    const { room, me } = getCtx();
+    if (!room || room.phase !== 'lobby' || room.hostId !== me.id || !d) return;
+    const s = room.settings;
+    for (const k of Object.keys(LIMITS)) {
+      if (d[k] === undefined) continue;
+      let n = Number(d[k]);
+      if (!Number.isFinite(n)) continue;
+      const [lo, hi] = LIMITS[k];
+      n = Math.min(hi, Math.max(lo, n));
+      s[k] = k === 'hunterCount' ? Math.round(n) : Math.round(n * 2) / 2; // half-minute steps
+    }
+    if (d.roleMode === 'random' || d.roleMode === 'manual') s.roleMode = d.roleMode;
+    broadcast(room);
+  });
+
   socket.on('start', (_d, ack) => {
     ack = typeof ack === 'function' ? ack : () => {};
     const { room, me } = getCtx();
@@ -351,6 +419,11 @@ io.on('connection', (socket) => {
     if (room.hostId !== me.id) return ack({ ok: false, error: 'Only the host can start.' });
     if (room.phase !== 'lobby') return ack({ ok: false, error: 'Already started.' });
     const all = [...room.players.values()];
+    if (room.settings.roleMode === 'random') {
+      if (all.length < 2) return ack({ ok: false, error: 'Need at least 2 players.' });
+      const k = hunterCountFor(room.settings, all.length);
+      shuffle([...all]).forEach((p, i) => { p.side = i < k ? 'hunter' : 'shadow'; });
+    }
     const hunters = all.filter((p) => p.side === 'hunter');
     const shadows = all.filter((p) => p.side === 'shadow');
     if (!hunters.length || !shadows.length) {
@@ -368,7 +441,14 @@ io.on('connection', (socket) => {
     const now = Date.now();
     room.phase = 'headstart';
     room.startedAt = now;
-    room.huntStartAt = now + CFG.headStartMs;
+    const st = room.settings;
+    room.t = {
+      headStartMs: (st.headStartMin * MIN) / SCALE,
+      pingEveryMs: (st.pingEveryMin * MIN) / SCALE,
+      shrinkEveryMs: (st.shrinkEveryMin * MIN) / SCALE,
+      durationMs: (st.durationMin * MIN) / SCALE,
+    };
+    room.huntStartAt = now + room.t.headStartMs;
     room.nextPingAt = null;
     room.nextShrinkAt = null;
     room.endAt = null;
