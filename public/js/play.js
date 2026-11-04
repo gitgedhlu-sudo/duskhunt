@@ -190,35 +190,52 @@
       li.appendChild(left); li.appendChild(b);
       ul.appendChild(li);
     });
+    var random = s.settings.roleMode === 'random';
+    $('#sideBox').style.display = random ? 'none' : 'block';
+    $('#randomNote').style.display = random ? 'block' : 'none';
     $('#sideHunter').style.outline = s.you.side === 'hunter' ? '2px solid #fff' : 'none';
     $('#sideShadow').style.outline = s.you.side === 'shadow' ? '2px solid #fff' : 'none';
     $('#hostBox').style.display = s.you.host ? 'block' : 'none';
     $('#waitBox').style.display = s.you.host ? 'none' : 'block';
-    $('#waitBox').textContent = 'Zone radius: ' + s.baseRadius + ' m. Waiting for the host to start…';
-    var inp = $('#radiusInput');
-    inp.min = s.cfg.minRadius; inp.max = s.cfg.maxRadius;
-    if (document.activeElement !== inp) inp.value = s.baseRadius;
-    var seg = $('#radiusSeg');
-    seg.innerHTML = '';
-    [150, 250, 400].forEach(function (r) {
-      var b = document.createElement('button');
-      b.className = 'btn ghost sm' + (r === s.baseRadius ? ' on' : '');
-      b.textContent = r + ' m';
-      b.onclick = function () { socket.emit('setRadius', r); };
-      seg.appendChild(b);
+    $('#settingsLock').textContent = s.you.host ? '' : '(only the host can change these)';
+    $('#modeRandom').classList.toggle('on', random);
+    $('#modeManual').classList.toggle('on', !random);
+    $('#modeRandom').disabled = $('#modeManual').disabled = !s.you.host;
+
+    var L = s.cfg.limits;
+    var fields = [
+      ['#setHunters', s.settings.hunterCount, L.hunterCount],
+      ['#radiusInput', s.baseRadius, [s.cfg.minRadius, s.cfg.maxRadius]],
+      ['#setHead', s.settings.headStartMin, L.headStartMin],
+      ['#setPing', s.settings.pingEveryMin, L.pingEveryMin],
+      ['#setShrink', s.settings.shrinkEveryMin, L.shrinkEveryMin],
+      ['#setDur', s.settings.durationMin, L.durationMin]
+    ];
+    fields.forEach(function (f) {
+      var el = $(f[0]);
+      el.min = f[2][0]; el.max = f[2][1];
+      el.disabled = !s.you.host;
+      if (document.activeElement !== el) el.value = f[1];
     });
   }
 
-  function applyRadius() {
-    var v = parseInt($('#radiusInput').value, 10);
-    if (!isFinite(v)) return;
-    var min = state ? state.cfg.minRadius : 50, max = state ? state.cfg.maxRadius : 400;
-    v = Math.min(max, Math.max(min, v));
-    $('#radiusInput').value = v;
-    socket.emit('setRadius', v);
+  function sendSettings() {
+    var num = function (id) { var v = parseFloat($(id).value); return isFinite(v) ? v : undefined; };
+    socket.emit('setSettings', {
+      hunterCount: num('#setHunters'),
+      headStartMin: num('#setHead'),
+      pingEveryMin: num('#setPing'),
+      shrinkEveryMin: num('#setShrink'),
+      durationMin: num('#setDur')
+    });
+    var r = num('#radiusInput');
+    if (r !== undefined) socket.emit('setRadius', r);
   }
-  $('#btnRadiusSet').onclick = applyRadius;
-  $('#radiusInput').addEventListener('change', applyRadius);
+  ['#setHunters', '#radiusInput', '#setHead', '#setPing', '#setShrink', '#setDur'].forEach(function (id) {
+    $(id).addEventListener('change', sendSettings);
+  });
+  $('#modeRandom').onclick = function () { socket.emit('setSettings', { roleMode: 'random' }); };
+  $('#modeManual').onclick = function () { socket.emit('setSettings', { roleMode: 'manual' }); };
 
   function renderGame(s) {
     initMap();
@@ -245,7 +262,7 @@
       $('#t1l').textContent = 'Hunters released in';
       $('#t1').textContent = fmtTime(t.huntStartAt - now);
       banner.className = 'banner info';
-      banner.textContent = state.you.side === 'hunter' ? 'Stay put! Shadows are running.' : 'Run and hide! Hunters are frozen.';
+      banner.textContent = state.you.side === 'hunter' ? 'You are a HUNTER. Stay put! Shadows are running.' : 'You are a SHADOW. Run and hide!';
     } else if (state.phase === 'hunt') {
       $('#t1l').textContent = 'Time left';
       $('#t1').textContent = fmtTime(t.endAt - now);
@@ -318,7 +335,7 @@
   $('#sideShadow').onclick = function () { socket.emit('setSide', 'shadow'); };
   $('#btnStart').onclick = function () {
     $('#lobbyErr').textContent = '';
-    applyRadius(); // make sure a typed-but-not-confirmed value is used
+    sendSettings(); // make sure typed-but-not-confirmed values are used
     if (myPos) socket.emit('loc', myPos);
     socket.emit('start', {}, function (res) { if (!res.ok) $('#lobbyErr').textContent = res.error; });
   };
